@@ -1,0 +1,174 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String      @id
+  nome         String
+  email        String      @unique
+  cargo        String
+  role         String      // ADMIN | GERENTE | VENDEDOR
+  telefone     String?
+  ativo        Boolean     @default(true)
+  ultimoAcesso DateTime?
+  criadoEm     DateTime    @default(now())
+  credential   Credential?
+}
+
+model Credential {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email        String   @unique
+  passwordHash String
+  updatedAt    DateTime @updatedAt
+}
+
+model Veiculo {
+  id                 String           @id
+  categoria          String
+  marca              String
+  modelo             String
+  versao             String?
+  anoFabricacao      Int
+  anoModelo          Int
+  cor                String
+  dataEntrada        String
+  valorAquisicao     Float
+  precoAnunciado     Float
+  valorFipe          Float?
+  codigoFipe         String?
+  mesReferenciaFipe  String?
+  status             String           // DISPONIVEL | PREPARACAO | RESERVADO | VENDIDO | DEVOLVIDO
+  observacoes        String?
+  
+  // Rodoviários
+  placa              String?
+  renavam            String?
+  chassi             String?
+  quilometragem      Float?
+  combustivel        String?
+  cambio             String?
+
+  fotoCapa           String?
+
+  fotos              FotoVeiculo[]
+  despesas           DespesaVeiculo[]
+  vendas             Venda[]          @relation("VeiculoVendido")
+  vendasComoTroca    Venda[]          @relation("VeiculoTroca")
+
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+model FotoVeiculo {
+  id        String   @id
+  veiculoId String
+  veiculo   Veiculo  @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
+  url       String
+  isCapa    Boolean  @default(false)
+  ordem     Int      @default(0)
+}
+
+model DespesaVeiculo {
+  id             String   @id
+  veiculoId      String
+  veiculo        Veiculo  @relation(fields: [veiculoId], references: [id], onDelete: Cascade)
+  descricao      String
+  tipoDespesa    String
+  valor          Float
+  dataDespesa    String
+  fornecedorNome String?
+  notaFiscal     String?
+  createdAt      DateTime @default(now())
+}
+
+model Cliente {
+  id          String   @id
+  tipoPessoa  String   // FISICA | JURIDICA
+  nome        String
+  cpfCnpj     String
+  telefone    String
+  cidade      String
+  estadoUf    String
+  estadoCivil String?
+  profissao   String?
+  endereco    String?
+  observacoes String?
+  vendas      Venda[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ModeloDocumento {
+  id        String   @id
+  titulo    String
+  conteudo  String
+  isPadrao  Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model Venda {
+  id                  String              @id
+  veiculoId           String
+  veiculo             Veiculo             @relation("VeiculoVendido", fields: [veiculoId], references: [id])
+  clienteId           String
+  cliente             Cliente             @relation(fields: [clienteId], references: [id])
+  dataVenda           String
+  valorVenda          Float
+  custoTotal          Float
+  margemLucro         Float
+  formaPagamento      String              // A_VISTA | PIX | TRANSFERENCIA | FINANCIAMENTO | TROCA_E_SALDO | PARCELADO
+  valorEntrada        Float
+  valorFinanciado     Float
+  bancoFinanciador    String?
+  valorTroca          Float?
+  veiculoTrocaId      String?
+  veiculoTroca        Veiculo?            @relation("VeiculoTroca", fields: [veiculoTrocaId], references: [id])
+  saldoDevedorInicial Float?
+  anotacoesCaderno    String?
+  observacoes         String?
+  parcelas            ParcelaReceber[]
+  abatimentos         AbatimentoReceber[]
+  createdAt           DateTime            @default(now())
+}
+
+model ParcelaReceber {
+  id             String    @id
+  vendaId        String
+  venda          Venda     @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  numero         Int
+  valor          Float
+  dataVencimento String
+  pago           Boolean   @default(false)
+  dataPagamento  String?
+  observacao     String?
+}
+
+model AbatimentoReceber {
+  id         String   @id
+  vendaId    String
+  venda      Venda    @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  valor      Float
+  data       String
+  observacao String?
+  parcelaId  String?
+}
+
+model DocumentoGerado {
+  id            String   @id
+  modeloId      String
+  clienteId     String
+  veiculoId     String
+  outorgadoId   String?
+  vendaId       String?
+  titulo        String
+  conteudoFinal String
+  pdfUrl        String?
+  createdAt     DateTime @default(now())
+}

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="rbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+  </defs>
+  <!-- Fundo Circular Verde Esmeralda -->
+  <circle cx="256" cy="256" r="256" fill="url(#rbGrad)" />
+  <!-- Borda interna suave de realce -->
+  <circle cx="256" cy="256" r="246" fill="none" stroke="#6ee7b7" stroke-width="8" opacity="0.4" />
+  <!-- Letras RB em Branco Negrito -->
+  <text 
+    x="251.5" 
+    y="246.5" 
+    text-anchor="middle" 
+    dominant-baseline="central" 
+    font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" 
+    font-size="230" 
+    font-weight="900" 
+    letter-spacing="-8" 
+    fill="#ffffff"
+  >RB</text>
+</svg>
