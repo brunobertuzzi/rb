@@ -1,10 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const res = NextResponse.json({ success: true, message: "Sessão encerrada com sucesso." });
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const isHttps = forwardedProto === "https" || req.nextUrl?.protocol === "https:";
+
   res.cookies.set("rb_session", "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isHttps,
     sameSite: "lax",
     path: "/",
     maxAge: 0,
