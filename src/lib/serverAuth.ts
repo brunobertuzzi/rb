@@ -119,7 +119,12 @@ export async function getSessionFromRequest(req: Request | NextRequest): Promise
     token = authHeader.substring(7).trim();
   }
 
-  // 2. Cookie HTTP-Only rb_session
+  // 2. NextRequest cookies object
+  if (!token && "cookies" in req && typeof (req as NextRequest).cookies?.get === "function") {
+    token = (req as NextRequest).cookies.get("rb_session")?.value;
+  }
+
+  // 3. Cookie HTTP-Only header fallback
   if (!token) {
     const cookieHeader = req.headers.get("cookie");
     if (cookieHeader) {

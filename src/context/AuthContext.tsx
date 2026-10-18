@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, AuthSession, UserRole } from "@/types/auth";
-import { sanitizeInput } from "@/lib/authSecurity";
+import { sanitizeInput, getAuthHeaders, getAuthToken } from "@/lib/authSecurity";
 
 interface AuthContextType {
     user: User | null;
@@ -50,7 +50,8 @@ async function postSync(action: string, entity?: string, data?: unknown, id?: st
     try {
         await fetch("/api/sync", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getAuthHeaders({ "Content-Type": "application/json" }),
+            credentials: "include",
             body: JSON.stringify({ action, entity, data, id }),
         });
     } catch (err) {
@@ -74,13 +75,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             try {
                 // 1. Verifica se já existe uma sessão HTTP-Only válida e ativa no servidor
                 try {
-                    const meRes = await fetch("/api/auth/me");
+                    const meRes = await fetch("/api/auth/me", {
+                        headers: getAuthHeaders(),
+                        credentials: "include",
+                    });
                     if (meRes.ok) {
                         const meData = await meRes.json();
                         if (meData?.authenticated && meData?.user) {
                             setUser(meData.user);
+                            const currentToken = getAuthToken() || "cookie_session";
                             setSession({
-                                token: "cookie_session",
+                                token: currentToken,
                                 user: meData.user,
                                 expiresAt: Date.now() + 24 * 3600 * 1000,
                                 lembrarMe: true,
@@ -117,17 +122,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         // ignore
                     }
                 }
-
-                // 3. Atualiza lista de usuários a partir do servidor
-                fetch("/api/sync")
-                    .then((res) => (res.ok ? res.json() : null))
-                    .then((result) => {
-                        if (result?.connected && Array.isArray(result?.data?.users) && result.data.users.length > 0) {
-                            setUsersList(result.data.users);
-                            localStorage.setItem("rb_auth_users", JSON.stringify(result.data.users));
-                        }
-                    })
-                    .catch(() => {});
             } catch (err) {
                 console.error("Erro na inicialização da autenticação:", err);
             } finally {
@@ -137,6 +131,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         initAuth();
     }, []);
+
+    // Sincroniza lista de usuários com o servidor assim que o usuário estiver autenticado
+    useEffect(() => {
+        if (user) {
+            fetch("/api/sync", {
+                headers: getAuthHeaders(),
+                credentials: "include",
+            })
+                .then((res) => (res.ok ? res.json() : null))
+                .then((result) => {
+                    if (result?.connected && Array.isArray(result?.data?.users) && result.data.users.length > 0) {
+                        setUsersList(result.data.users);
+                        localStorage.setItem("rb_auth_users", JSON.stringify(result.data.users));
+                    }
+                })
+                .catch(() => {});
+        }
+    }, [user]);
 
     // Login Seguro no Servidor com Rate Limiting e Cookie HTTP-Only
     const login = async (
@@ -150,6 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const res = await fetch("/api/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "include",
                 body: JSON.stringify({ email: emailLimpo, senha: senhaInput, lembrarMe }),
             });
 
@@ -192,7 +205,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Logout Seguro: invalida o cookie no servidor e limpa a sessão local
     const logout = async () => {
         try {
-            await fetch("/api/auth/logout", { method: "POST" });
+            await fetch("/api/auth/logout", {
+                method: "POST",
+                headers: getAuthHeaders(),
+                credentials: "include",
+            });
         } catch {
             // Ignora erro de rede no logout
         }
@@ -218,6 +235,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const verifyRes = await fetch("/api/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "include",
                 body: JSON.stringify({ email: user.email, senha: senhaAtual }),
             });
 
@@ -261,6 +279,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const verifyRes = await fetch("/api/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "include",
                 body: JSON.stringify({ email: emailLimpo, senha: senhaAtual }),
             });
 

@@ -125,9 +125,12 @@ export async function POST(req: NextRequest) {
       token,
     });
 
+    const forwardedProto = req.headers.get("x-forwarded-proto");
+    const isHttps = forwardedProto === "https" || req.nextUrl.protocol === "https:";
+
     res.cookies.set("rb_session", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isHttps,
       sameSite: "lax",
       path: "/",
       maxAge: duracaoSegundos,

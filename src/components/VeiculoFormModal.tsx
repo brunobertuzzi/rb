@@ -5,6 +5,7 @@ import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { Veiculo, StatusVeiculo } from "@/types";
 import { getLocalISODate, formatCurrencyInput, parseCurrencyInput, formatCurrency } from "@/lib/utils";
+import { getAuthHeaders } from "@/lib/authSecurity";
 import { 
   X, 
   Car, 
@@ -385,6 +386,8 @@ export function VeiculoFormModal({ veiculoParaEditar, isOpen, onClose }: Veiculo
 
       const res = await fetch("/api/parse-crlv", {
         method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "include",
         body: formData,
       });
 

@@ -15,6 +15,7 @@ import { initialModelosDocumentos } from "@/lib/initialData";
 import { getLocalISODate } from "@/lib/utils";
 import { idbGet, idbSet } from "@/lib/idbStorage";
 import { useAuth } from "@/context/AuthContext";
+import { getAuthHeaders } from "@/lib/authSecurity";
 
 function generateId(prefix: string): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -59,7 +60,8 @@ async function postSync(action: string, entity?: string, data?: unknown, id?: st
   try {
     await fetch("/api/sync", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      credentials: "include",
       body: JSON.stringify({ action, entity, data, id, parentId }),
     });
   } catch (err) {
@@ -199,37 +201,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       idbGet<DocumentoGerado[]>("rb_documentos_gerados").then((idbD) => {
         if (idbD && idbD.length > 0) setDocumentosGerados(idbD);
       });
-
-      // Sincronização inteligente com PostgreSQL se DATABASE_URL estiver configurada
-      fetch("/api/sync")
-        .then((res) => res.json())
-        .then((result) => {
-          if (result?.connected && result?.data) {
-            const d = result.data;
-            if (
-              (d.veiculos && d.veiculos.length > 0) ||
-              (d.clientes && d.clientes.length > 0) ||
-              (d.vendas && d.vendas.length > 0)
-            ) {
-              setVeiculos(d.veiculos);
-              setClientes(d.clientes);
-              if (d.modelos && d.modelos.length > 0) setModelos(d.modelos);
-              setVendas(d.vendas);
-              setDocumentosGerados(d.documentosGerados || []);
-            } else if (parsedVeiculos.length > 0 || parsedClientes.length > 0) {
-              postSync("seed_migration", undefined, {
-                veiculos: parsedVeiculos,
-                clientes: parsedClientes,
-                modelos: parsedModelos,
-                vendas: parsedVendas,
-                documentosGerados: parsedDocs,
-              });
-            }
-          }
-        })
-        .catch(() => {
-          // Fallback offline / localStorage
-        });
     }
   }, []);
 
@@ -237,7 +208,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const carregarDadosDoServidor = async () => {
     try {
-      const res = await fetch("/api/sync");
+      const res = await fetch("/api/sync", {
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
       if (!res.ok) return;
       const result = await res.json();
       if (result?.connected && result?.data) {

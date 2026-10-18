@@ -122,3 +122,34 @@ export function computeSessionSignature(userId: string, email: string, role: str
   return `sig_${(h1 >>> 0).toString(16).padStart(8, "0")}${(h2 >>> 0).toString(16).padStart(8, "0")}`;
 }
 
+/**
+ * Recupera o token de autenticação JWT ativo do cliente (se disponível).
+ */
+export function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("rb_auth_session");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.token && typeof parsed.token === "string" && parsed.token !== "cookie_session") {
+        return parsed.token;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+/**
+ * Monta os headers de requisição incluindo Authorization: Bearer <token> se logado.
+ */
+export function getAuthHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
+  const token = getAuthToken();
+  const headers: Record<string, string> = { ...extraHeaders };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
