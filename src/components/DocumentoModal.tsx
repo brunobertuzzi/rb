@@ -426,36 +426,34 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
     };
 
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-md p-2 sm:p-4 flex items-center justify-center">
-            <div className="bg-white border border-black/[0.08] rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col h-[92vh] max-h-[900px] relative animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-md p-1.5 sm:p-4 flex items-center justify-center">
+            <div className="bg-white border border-black/[0.08] rounded-2xl sm:rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col h-[96vh] sm:h-[92vh] max-h-[900px] relative animate-in fade-in zoom-in-95 duration-200">
                 {/* Header Apple iOS */}
-                <div className="px-6 py-3.5 border-b border-black/[0.06] flex items-center justify-between bg-zinc-50/80 shrink-0">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-2xl bg-blue-50 border border-blue-200/70 flex items-center justify-center text-blue-600 shadow-2xs shrink-0">
+                <div className="px-3.5 sm:px-6 py-2.5 sm:py-3.5 border-b border-black/[0.06] flex items-center justify-between bg-zinc-50/80 shrink-0">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-blue-50 border border-blue-200/70 flex items-center justify-center text-blue-600 shadow-2xs shrink-0">
                             <FileText className="w-4 h-4 font-bold" />
                         </div>
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-base sm:text-lg text-zinc-950 tracking-tight truncate">
-                                    Emissor de Procurações & Contratos
-                                </h3>
-                            </div>
-                            <p className="text-xs text-zinc-500 font-normal truncate">
-                                Gere procurações DETRAN, contratos de compra e venda e termos de responsabilidade preenchidos.
+                        <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-sm sm:text-lg text-zinc-950 tracking-tight truncate">
+                                Emissor de Procurações & Contratos
+                            </h3>
+                            <p className="text-[11px] sm:text-xs text-zinc-500 font-normal truncate hidden sm:block">
+                                Gere procurações DETRAN, contratos de compra e venda e termos preenchidos.
                             </p>
                         </div>
                     </div>
 
                     <button
                         onClick={onClose}
-                        className="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 text-zinc-500 hover:text-zinc-900 flex items-center justify-center transition-colors shrink-0 ml-2"
+                        className="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 text-zinc-500 hover:text-zinc-900 flex items-center justify-center transition-colors shrink-0 ml-2 cursor-pointer"
                     >
                         <X className="w-4 h-4" />
                     </button>
                 </div>
 
-                {/* Barra de Seleção de Entidades (Topo, 4 colunas perfeitamente alinhadas) */}
-                <div className="px-6 py-3 bg-[#f2f2f7]/80 border-b border-black/[0.06] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
+                {/* Barra de Seleção de Entidades */}
+                <div className="px-3 sm:px-6 py-2 sm:py-3 bg-[#f2f2f7]/80 border-b border-black/[0.06] grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 shrink-0">
                     {/* 1. Modelo de Documento */}
                     <div className="min-w-0 flex flex-col justify-between">
                         <div className="flex items-center justify-between h-4 mb-1.5">
@@ -555,18 +553,18 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
 
                 {/* Banner Inteligente: Alerta de Dados Faltantes no Cadastro com Ação Rápida */}
                 {camposPendentesCliente.length > 0 && (
-                    <div className="mx-6 mt-3 px-4 py-2 bg-amber-50/95 border border-amber-200/90 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in shadow-2xs shrink-0">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                    <div className="mx-2.5 sm:mx-6 mt-2.5 p-3 sm:px-4 sm:py-2.5 bg-amber-50/95 border border-amber-200/90 rounded-xl sm:rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 animate-in fade-in shadow-2xs shrink-0">
+                        <div className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1">
+                            <div className="w-6 h-6 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
                                 <AlertTriangle className="w-3.5 h-3.5" />
                             </div>
-                            <div className="min-w-0">
-                                <p className="text-xs font-semibold text-amber-950 truncate">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs font-semibold text-amber-950 break-words leading-tight">
                                     {camposPendentesCliente.length === 1
                                         ? `1 dado exigido por este modelo está pendente no cadastro de ${cliente?.nome}:`
                                         : `${camposPendentesCliente.length} dados exigidos por este modelo estão pendentes no cadastro de ${cliente?.nome}:`}
                                 </p>
-                                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                     {camposPendentesCliente.map((p) => (
                                         <span key={p.campo} className="text-[10px] bg-amber-100/90 text-amber-900 font-semibold px-2 py-0.5 rounded-md border border-amber-200">
                                             {p.label}
@@ -579,7 +577,7 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
                         <button
                             type="button"
                             onClick={handleAbrirCompletar}
-                            className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs px-3.5 py-1.5 rounded-xl transition-all shadow-xs active:scale-95 shrink-0"
+                            className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs active:scale-95 shrink-0 cursor-pointer"
                         >
                             <UserCheck className="w-3.5 h-3.5" />
                             <span>Completar Cadastro Rápido</span>
@@ -588,7 +586,7 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
                 )}
 
                 {/* Área Central: Visualizador de Documento (Folha A4 Apple Material com scroll perfeito) */}
-                <div className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0 bg-[#f2f2f7] flex flex-col items-center">
+                <div className="p-2 sm:p-6 overflow-y-auto flex-1 min-h-0 bg-[#f2f2f7] flex flex-col items-center">
                     {savedSuccess && (
                         <div className="w-full max-w-3xl flex justify-end mb-3 text-xs shrink-0">
                             <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-xl shadow-xs animate-in fade-in">
@@ -598,7 +596,7 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
                     )}
 
                     {/* Folha A4 Simulada */}
-                    <div className="w-full max-w-3xl bg-white text-zinc-900 rounded-2xl shadow-sm p-6 sm:p-10 border border-black/[0.06] my-auto">
+                    <div className="w-full max-w-3xl bg-white text-zinc-900 rounded-2xl shadow-sm p-4 sm:p-10 border border-black/[0.06] my-auto">
                         <div
                             className="font-serif text-sm sm:text-base leading-relaxed break-words text-zinc-900 select-text"
                             dangerouslySetInnerHTML={{ __html: renderDocumentoFormatadoHtml(conteudoEditavel) }}
@@ -607,25 +605,25 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
                 </div>
 
                 {/* Rodapé com Botões de Ação */}
-                <div className="px-6 py-3.5 border-t border-black/[0.06] bg-zinc-50/80 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-                    <div className="text-xs flex items-center gap-2 min-w-0">
+                <div className="px-3 sm:px-6 py-2.5 sm:py-3.5 border-t border-black/[0.06] bg-zinc-50/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
+                    <div className="text-xs flex items-start sm:items-center gap-2 min-w-0 w-full sm:w-auto">
                         {camposPendentesCliente.length > 0 && (
-                            <>
-                                <Lock className="w-4 h-4 text-amber-600 shrink-0" />
-                                <span className="text-amber-800 font-semibold truncate">
+                            <div className="flex items-start sm:items-center gap-2 w-full bg-amber-500/10 border border-amber-300/70 p-2 sm:p-0 sm:bg-transparent sm:border-0 rounded-xl">
+                                <Lock className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5 sm:mt-0" />
+                                <span className="text-amber-900 font-medium text-[11px] sm:text-xs break-words leading-tight flex-1">
                                     Emissão bloqueada: Complete os {camposPendentesCliente.length} dados pendentes no banner acima para liberar a impressão e o download.
                                 </span>
-                            </>
+                            </div>
                         )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end shrink-0">
+                    <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto justify-end shrink-0">
                         <button
                             type="button"
                             onClick={handleBaixarWord}
                             disabled={camposPendentesCliente.length > 0}
                             title={camposPendentesCliente.length > 0 ? "Preencha todos os dados pendentes para liberar o download" : "Baixar Word (.doc)"}
-                            className={`flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl transition-all ${camposPendentesCliente.length > 0
+                            className={`w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl transition-all ${camposPendentesCliente.length > 0
                                     ? "bg-zinc-100 text-zinc-400 border border-zinc-200/80 cursor-not-allowed opacity-60 shadow-none"
                                     : "bg-white text-zinc-700 hover:text-zinc-900 hover:bg-zinc-50 border border-black/[0.08] active:scale-95 shadow-2xs cursor-pointer"
                                 }`}
@@ -639,7 +637,7 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
                             onClick={handleImprimir}
                             disabled={camposPendentesCliente.length > 0}
                             title={camposPendentesCliente.length > 0 ? "Preencha todos os dados pendentes para liberar a impressão" : "Imprimir"}
-                            className={`flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl transition-all ${camposPendentesCliente.length > 0
+                            className={`w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl transition-all ${camposPendentesCliente.length > 0
                                     ? "bg-zinc-100 text-zinc-400 border border-zinc-200/80 cursor-not-allowed opacity-60 shadow-none"
                                     : "bg-white text-zinc-800 hover:text-zinc-950 hover:bg-zinc-50 border border-black/[0.08] active:scale-95 shadow-2xs cursor-pointer"
                                 }`}
@@ -657,7 +655,7 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
                             onClick={handleEncaminharPdf}
                             disabled={camposPendentesCliente.length > 0}
                             title={camposPendentesCliente.length > 0 ? "Preencha todos os dados pendentes para liberar o envio" : "Encaminhar PDF"}
-                            className={`flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl transition-all ${camposPendentesCliente.length > 0
+                            className={`w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl transition-all ${camposPendentesCliente.length > 0
                                     ? "bg-zinc-200 text-zinc-400 border border-zinc-300/80 cursor-not-allowed opacity-60 shadow-none"
                                     : "bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95 shadow-xs cursor-pointer"
                                 }`}
@@ -674,32 +672,32 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
 
                 {/* Mini-Painel / Drawer: Completar Cadastro Rápido sem sair da tela */}
                 {drawerCompletarAberto && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm overflow-y-auto animate-in fade-in">
-                        <div className="bg-white border border-black/[0.08] rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-150">
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-5 bg-black/60 backdrop-blur-sm overflow-y-auto animate-in fade-in">
+                        <div className="bg-white border border-black/[0.08] rounded-2xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-150">
                             {/* Header */}
-                            <div className="px-6 py-4 border-b border-black/[0.06] flex items-center justify-between bg-zinc-50/80">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="w-9 h-9 rounded-2xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 shadow-2xs">
+                            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-black/[0.06] flex items-center justify-between bg-zinc-50/80">
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
+                                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 shadow-2xs shrink-0">
                                         <UserCheck className="w-4 h-4" />
                                     </div>
-                                    <div>
-                                        <h4 className="font-semibold text-sm sm:text-base text-zinc-950 tracking-tight">
+                                    <div className="min-w-0 flex-1">
+                                        <h4 className="font-semibold text-xs sm:text-base text-zinc-950 tracking-tight truncate">
                                             Completar Cadastro de {cliente?.nome}
                                         </h4>
-                                        <p className="text-xs text-zinc-500">
-                                            Preencha as informações pendentes para atualizar a procuração e o cadastro.
+                                        <p className="text-[11px] sm:text-xs text-zinc-500 truncate">
+                                            Preencha as informações pendentes para atualizar o documento.
                                         </p>
                                     </div>
                                 </div>
                                 <button
                                     onClick={() => setDrawerCompletarAberto(false)}
-                                    className="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 text-zinc-500 hover:text-zinc-900 flex items-center justify-center transition-colors"
+                                    className="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 text-zinc-500 hover:text-zinc-900 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
 
-                            <form onSubmit={handleSalvarCompletar} className="p-6 space-y-3.5">
+                            <form onSubmit={handleSalvarCompletar} className="p-4 sm:p-6 space-y-3 sm:space-y-3.5">
                                 {/* Telefone / WhatsApp */}
                                 <div>
                                     <label className="text-xs font-semibold text-zinc-700 block mb-1">
@@ -714,7 +712,7 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                                     {/* Estado Civil */}
                                     <div>
                                         <label className="text-xs font-semibold text-zinc-700 block mb-1">
@@ -763,7 +761,7 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
                                 </div>
 
                                 {/* Cidade e UF */}
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
                                     <div className="col-span-2">
                                         <label className="text-xs font-semibold text-zinc-700 block mb-1">Cidade</label>
                                         <input
@@ -788,17 +786,17 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
                                 </div>
 
                                 {/* Rodapé */}
-                                <div className="pt-3 border-t border-black/[0.06] flex items-center justify-end gap-2.5">
+                                <div className="pt-3 border-t border-black/[0.06] flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2">
                                     <button
                                         type="button"
                                         onClick={() => setDrawerCompletarAberto(false)}
-                                        className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 px-4 py-2 rounded-xl transition-colors"
+                                        className="w-full sm:w-auto text-xs font-semibold text-zinc-600 hover:text-zinc-900 px-4 py-2 rounded-xl transition-colors text-center cursor-pointer"
                                     >
                                         Cancelar
                                     </button>
                                     <button
                                         type="submit"
-                                        className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-4 py-2 rounded-xl transition-all shadow-xs active:scale-95"
+                                        className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-4 py-2.5 sm:py-2 rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer"
                                     >
                                         <Save className="w-3.5 h-3.5" />
                                         <span>Salvar e Atualizar Documento</span>

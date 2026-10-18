@@ -13,6 +13,7 @@ import {
 } from "@/types";
 import { initialModelosDocumentos } from "@/lib/initialData";
 import { getLocalISODate } from "@/lib/utils";
+import { idbGet, idbSet } from "@/lib/idbStorage";
 
 function generateId(prefix: string): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -34,33 +35,22 @@ function safeLoadCollection<T>(key: string, fallback: T[]): T[] {
     if (Array.isArray(parsed)) {
       return parsed as T[];
     }
-    localStorage.setItem(`${key}_corrupted_backup`, raw);
     return fallback;
-  } catch (err) {
-    console.error(`Erro ao ler coleção ${key} do localStorage. Backup salvo em ${key}_corrupted_backup:`, err);
-    try {
-      localStorage.setItem(`${key}_corrupted_backup`, raw);
-    } catch {
-      // ignora erro secundário de quota
-    }
+  } catch {
     return fallback;
   }
 }
 
-let quotaAlertShown = false;
 function safeSaveCollection(key: string, data: unknown): void {
   if (typeof window === "undefined") return;
+  // Grava sempre no IndexedDB (sem limite de 5MB)
+  idbSet(key, data);
+
+  // Espelha no localStorage para acesso síncrono rápido se couber
   try {
     localStorage.setItem(key, JSON.stringify(data));
-    quotaAlertShown = false;
-  } catch (err) {
-    console.error(`Falha ao salvar coleção ${key} no localStorage:`, err);
-    if (!quotaAlertShown) {
-      quotaAlertShown = true;
-      alert(
-        "Atenção: O limite de armazenamento do navegador foi atingido (ex.: excesso de fotos pesadas). Exporte um Backup JSON imediatamente e remova fotos desnecessárias."
-      );
-    }
+  } catch {
+    // Quota do localStorage atingida: dados permanecem 100% seguros no IndexedDB
   }
 }
 
@@ -193,6 +183,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setVendas(parsedVendas);
       setDocumentosGerados(parsedDocs);
       setLoaded(true);
+
+      // Hidrata a partir do IndexedDB caso o localStorage não tenha comportado itens pesados/fotos
+      idbGet<Veiculo[]>("rb_veiculos").then((idbV) => {
+        if (idbV && idbV.length > 0) setVeiculos(idbV);
+      });
+      idbGet<Cliente[]>("rb_clientes").then((idbC) => {
+        if (idbC && idbC.length > 0) setClientes(idbC);
+      });
+      idbGet<Venda[]>("rb_vendas").then((idbVd) => {
+        if (idbVd && idbVd.length > 0) setVendas(idbVd);
+      });
+      idbGet<DocumentoGerado[]>("rb_documentos_gerados").then((idbD) => {
+        if (idbD && idbD.length > 0) setDocumentosGerados(idbD);
+      });
 
       // Sincronização inteligente com PostgreSQL se DATABASE_URL estiver configurada
       fetch("/api/sync")

@@ -37,7 +37,7 @@ const CATEGORIAS_RODOVIARIO = [
   "Caminhão",
 ];
 
-async function compressImageToDataUrl(file: File, maxDimension = 1200, quality = 0.72): Promise<string> {
+async function compressImageToDataUrl(file: File, maxDimension = 900, quality = 0.65): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Falha ao ler arquivo de imagem."));
