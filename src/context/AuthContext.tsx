@@ -2,13 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, AuthSession, UserRole } from "@/types/auth";
-import { hashPassword, generateSecureToken, sanitizeInput, computeSessionSignature } from "@/lib/authSecurity";
-
-interface StoredCredential {
-    userId: string;
-    email: string;
-    passwordHash: string;
-}
+import { sanitizeInput } from "@/lib/authSecurity";
 
 interface AuthContextType {
     user: User | null;
@@ -40,7 +34,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Conta corporativa principal pré-configurada
 const DEFAULT_USERS: User[] = [
     {
         id: "usr-admin-01",
@@ -61,7 +54,7 @@ async function postSync(action: string, entity?: string, data?: unknown, id?: st
             body: JSON.stringify({ action, entity, data, id }),
         });
     } catch (err) {
-        console.warn("Sincronização de usuário com PostgreSQL pendente:", err);
+        console.warn("Sincronização com PostgreSQL pendente:", err);
     }
 }
 
@@ -70,162 +63,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [session, setSession] = useState<AuthSession | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [usersList, setUsersList] = useState<User[]>(DEFAULT_USERS);
-    const [credentials, setCredentials] = useState<StoredCredential[]>([]);
     const [tentativasFalhas, setTentativasFalhas] = useState<number>(0);
     const [bloqueadoAte, setBloqueadoAte] = useState<number | null>(null);
 
-    const persistLockout = (tentativas: number, bloqueio: number | null) => {
-        setTentativasFalhas(tentativas);
-        setBloqueadoAte(bloqueio);
-        if (typeof window !== "undefined") {
-            if (tentativas === 0 && !bloqueio) {
-                localStorage.removeItem("rb_auth_lockout");
-            } else {
-                localStorage.setItem(
-                    "rb_auth_lockout",
-                    JSON.stringify({ tentativasFalhas: tentativas, bloqueadoAte: bloqueio })
-                );
-            }
-        }
-    };
-
-    // Inicialização e recuperação de sessão segura
+    // Inicialização da sessão e verificação de autenticação com o servidor
     useEffect(() => {
         async function initAuth() {
             if (typeof window === "undefined") return;
 
             try {
-                // Restaura estado de bloqueio contra força bruta
-                const savedLockout = localStorage.getItem("rb_auth_lockout");
-                if (savedLockout) {
-                    try {
-                        const parsedLockout = JSON.parse(savedLockout);
-                        if (parsedLockout.bloqueadoAte && Date.now() < parsedLockout.bloqueadoAte) {
-                            setBloqueadoAte(parsedLockout.bloqueadoAte);
-                            setTentativasFalhas(parsedLockout.tentativasFalhas || 5);
-                        } else if (parsedLockout.tentativasFalhas) {
-                            setTentativasFalhas(parsedLockout.tentativasFalhas);
-                            setBloqueadoAte(null);
+                // 1. Verifica se já existe uma sessão HTTP-Only válida e ativa no servidor
+                try {
+                    const meRes = await fetch("/api/auth/me");
+                    if (meRes.ok) {
+                        const meData = await meRes.json();
+                        if (meData?.authenticated && meData?.user) {
+                            setUser(meData.user);
+                            setSession({
+                                token: "cookie_session",
+                                user: meData.user,
+                                expiresAt: Date.now() + 24 * 3600 * 1000,
+                                lembrarMe: true,
+                            });
                         }
-                    } catch {
-                        localStorage.removeItem("rb_auth_lockout");
+                    } else if (meRes.status === 401) {
+                        localStorage.removeItem("rb_auth_session");
+                    }
+                } catch {
+                    // Servidor offline, recupera cache local seguro
+                    const savedSession = localStorage.getItem("rb_auth_session");
+                    if (savedSession) {
+                        try {
+                            const parsed = JSON.parse(savedSession);
+                            if (parsed && Date.now() < parsed.expiresAt) {
+                                setUser(parsed.user);
+                                setSession(parsed);
+                            }
+                        } catch {
+                            localStorage.removeItem("rb_auth_session");
+                        }
                     }
                 }
 
-                const savedCreds = localStorage.getItem("rb_auth_credentials");
+                // 2. Carrega lista de usuários em cache local
                 const savedUsers = localStorage.getItem("rb_auth_users");
-
-                const defaultAdminHash = await hashPassword("Onurb123**");
-
-                let currentUsers: User[] = DEFAULT_USERS;
                 if (savedUsers) {
                     try {
-                        const parsed: User[] = JSON.parse(savedUsers);
-                        if (Array.isArray(parsed)) {
-                            currentUsers = parsed
-                                .filter((u) => u.id !== "usr-gerente-02" && u.id !== "usr-vendas-03")
-                                .map((u) => {
-                                    if (u.id === "usr-admin-01") {
-                                        return {
-                                            ...u,
-                                            nome: u.nome || "Bruno Bertuzzi",
-                                            email: "brunobertuzzib@gmail.com",
-                                            role: "ADMIN",
-                                        };
-                                    }
-                                    return u;
-                                });
-                            if (!currentUsers.some((u) => u.id === "usr-admin-01" || u.role === "ADMIN")) {
-                                currentUsers.unshift(DEFAULT_USERS[0]);
-                            }
+                        const parsedUsers = JSON.parse(savedUsers);
+                        if (Array.isArray(parsedUsers) && parsedUsers.length > 0) {
+                            setUsersList(parsedUsers);
                         }
                     } catch {
-                        currentUsers = DEFAULT_USERS;
+                        // ignore
                     }
                 }
-                setUsersList(currentUsers);
-                localStorage.setItem("rb_auth_users", JSON.stringify(currentUsers));
 
-                let currentCreds: StoredCredential[] = [
-                    { userId: "usr-admin-01", email: "brunobertuzzib@gmail.com", passwordHash: defaultAdminHash },
-                ];
-
-                if (savedCreds) {
-                    try {
-                        const parsedCreds: StoredCredential[] = JSON.parse(savedCreds);
-                        if (Array.isArray(parsedCreds)) {
-                            currentCreds = parsedCreds
-                                .filter((c) => c.userId !== "usr-gerente-02" && c.userId !== "usr-vendas-03")
-                                .map((c) => {
-                                    if (c.userId === "usr-admin-01" || c.email === "admin@rbagro.com.br" || c.email === "brunobertuzzib@gmail.com") {
-                                        return {
-                                            ...c,
-                                            userId: "usr-admin-01",
-                                            email: "brunobertuzzib@gmail.com",
-                                            // Preserva o hash salvo caso o administrador já tenha alterado a senha
-                                            passwordHash: c.passwordHash || defaultAdminHash,
-                                        };
-                                    }
-                                    return c;
-                                });
-                            if (!currentCreds.some((c) => c.userId === "usr-admin-01")) {
-                                currentCreds.unshift({ userId: "usr-admin-01", email: "brunobertuzzib@gmail.com", passwordHash: defaultAdminHash });
-                            }
-                        }
-                    } catch {
-                        // fallback
-                    }
-                }
-                setCredentials(currentCreds);
-                localStorage.setItem("rb_auth_credentials", JSON.stringify(currentCreds));
-
-                // Sincroniza usuários e credenciais com PostgreSQL se disponível
+                // 3. Atualiza lista de usuários a partir do servidor
                 fetch("/api/sync")
-                    .then((res) => res.json())
+                    .then((res) => (res.ok ? res.json() : null))
                     .then((result) => {
-                        if (result?.connected && result?.data?.users?.length > 0) {
+                        if (result?.connected && Array.isArray(result?.data?.users) && result.data.users.length > 0) {
                             setUsersList(result.data.users);
-                            if (result.data.credentials) setCredentials(result.data.credentials);
-                        } else if (result?.connected && currentUsers.length > 0) {
-                            postSync("seed_migration", undefined, { users: currentUsers, credentials: currentCreds });
+                            localStorage.setItem("rb_auth_users", JSON.stringify(result.data.users));
                         }
                     })
                     .catch(() => {});
-
-                // Recupera sessão existente se válida e íntegra contra adulteração de role
-                const savedSession = localStorage.getItem("rb_auth_session");
-                if (savedSession) {
-                    const parsedSession: AuthSession & { signature?: string } = JSON.parse(savedSession);
-                    const matchedUser = currentUsers.find(
-                        (u) => u.id === parsedSession?.user?.id && u.ativo
-                    );
-
-                    if (parsedSession && Date.now() < parsedSession.expiresAt && matchedUser) {
-                        const expectedSig = computeSessionSignature(
-                            matchedUser.id,
-                            matchedUser.email,
-                            matchedUser.role,
-                            String(parsedSession.expiresAt)
-                        );
-                        // Se havia assinatura e ela diverge do role armazenado na sessão, bloqueia adulteração
-                        if (parsedSession.signature && parsedSession.signature !== expectedSig) {
-                            localStorage.removeItem("rb_auth_session");
-                        } else {
-                            const verifiedSession = {
-                                ...parsedSession,
-                                user: matchedUser,
-                                signature: expectedSig,
-                            };
-                            localStorage.setItem("rb_auth_session", JSON.stringify(verifiedSession));
-                            setSession(verifiedSession);
-                            setUser(matchedUser);
-                        }
-                    } else {
-                        localStorage.removeItem("rb_auth_session");
-                    }
-                }
             } catch (err) {
-                console.error("Erro ao inicializar segurança de autenticação:", err);
+                console.error("Erro na inicialização da autenticação:", err);
             } finally {
                 setIsLoading(false);
             }
@@ -234,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         initAuth();
     }, []);
 
-    // Login Seguro com bloqueio contra força bruta persistido
+    // Login Seguro no Servidor com Rate Limiting e Cookie HTTP-Only
     const login = async (
         emailInput: string,
         senhaInput: string,
@@ -242,104 +146,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ): Promise<{ success: boolean; message?: string }> => {
         const emailLimpo = sanitizeInput(emailInput).toLowerCase();
 
-        // Verificação de bloqueio ativo por tentativas excessivas
-        if (bloqueadoAte && Date.now() < bloqueadoAte) {
-            const segundosRestantes = Math.ceil((bloqueadoAte - Date.now()) / 1000);
-            return {
-                success: false,
-                message: `Acesso temporariamente bloqueado por segurança. Aguarde ${segundosRestantes} segundos para tentar novamente.`,
-            };
-        }
+        try {
+            const res = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: emailLimpo, senha: senhaInput, lembrarMe }),
+            });
 
-        const targetUser = usersList.find((u) => u.email.toLowerCase() === emailLimpo);
-        const targetCred = credentials.find((c) => c.email.toLowerCase() === emailLimpo);
+            const data = await res.json();
 
-        if (!targetUser || !targetCred) {
-            const novasTentativas = tentativasFalhas + 1;
-
-            if (novasTentativas >= 5) {
-                const tempoBloqueio = Date.now() + 30 * 1000;
-                persistLockout(novasTentativas, tempoBloqueio);
+            if (res.status === 429) {
                 return {
                     success: false,
-                    message: "Múltiplas tentativas incorretas. Sistema bloqueado por 30 segundos por proteção contra invasões.",
+                    message: data.message || "Múltiplas tentativas incorretas. Aguarde alguns minutos antes de tentar novamente.",
                 };
             }
 
-            persistLockout(novasTentativas, null);
-            return {
-                success: false,
-                message: `E-mail ou senha incorretos. (${5 - novasTentativas} tentativas restantes antes do bloqueio)`,
-            };
-        }
-
-        if (!targetUser.ativo) {
-            return {
-                success: false,
-                message: "Esta conta de usuário está desativada. Contate a administração do sistema.",
-            };
-        }
-
-        // Calcula e compara o hash da senha
-        const hashedAttempt = await hashPassword(senhaInput);
-        if (hashedAttempt !== targetCred.passwordHash) {
-            const novasTentativas = tentativasFalhas + 1;
-
-            if (novasTentativas >= 5) {
-                const tempoBloqueio = Date.now() + 30 * 1000;
-                persistLockout(novasTentativas, tempoBloqueio);
-                return {
-                    success: false,
-                    message: "Múltiplas tentativas incorretas. Sistema bloqueado por 30 segundos por proteção contra invasões.",
+            if (res.ok && data.success && data.user) {
+                setUser(data.user);
+                const newSession: AuthSession = {
+                    token: data.token || "cookie_session",
+                    user: data.user,
+                    expiresAt: Date.now() + (lembrarMe ? 7 * 24 * 3600 * 1000 : 24 * 3600 * 1000),
+                    lembrarMe,
                 };
+                setSession(newSession);
+                localStorage.setItem("rb_auth_session", JSON.stringify(newSession));
+                setTentativasFalhas(0);
+                setBloqueadoAte(null);
+                return { success: true };
             }
 
-            persistLockout(novasTentativas, null);
             return {
                 success: false,
-                message: `E-mail ou senha incorretos. (${5 - novasTentativas} tentativas restantes antes do bloqueio)`,
+                message: data.message || "E-mail ou senha incorretos.",
+            };
+        } catch {
+            return {
+                success: false,
+                message: "Não foi possível conectar ao servidor de autenticação. Verifique sua conexão de rede.",
             };
         }
-
-        // Sucesso na autenticação: reseta tentativas de falha
-        persistLockout(0, null);
-
-        // Criação de sessão segura assinada
-        const duracaoMs = lembrarMe ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
-        const expiresAt = Date.now() + duracaoMs;
-        const updatedUser: User = {
-            ...targetUser,
-            ultimoAcesso: new Date().toISOString(),
-        };
-
-        const signature = computeSessionSignature(
-            updatedUser.id,
-            updatedUser.email,
-            updatedUser.role,
-            String(expiresAt)
-        );
-
-        const newSession: AuthSession & { signature?: string } = {
-            token: generateSecureToken(),
-            user: updatedUser,
-            expiresAt,
-            lembrarMe,
-            signature,
-        };
-
-        setUser(updatedUser);
-        setSession(newSession);
-
-        const updatedUsersList = usersList.map((u) => (u.id === updatedUser.id ? updatedUser : u));
-        setUsersList(updatedUsersList);
-        localStorage.setItem("rb_auth_users", JSON.stringify(updatedUsersList));
-        localStorage.setItem("rb_auth_session", JSON.stringify(newSession));
-
-        return { success: true };
     };
 
-    // Logout Seguro (invalidação imediata do token e sessão)
-    const logout = () => {
+    // Logout Seguro: invalida o cookie no servidor e limpa a sessão local
+    const logout = async () => {
+        try {
+            await fetch("/api/auth/logout", { method: "POST" });
+        } catch {
+            // Ignora erro de rede no logout
+        }
         setUser(null);
         setSession(null);
         if (typeof window !== "undefined") {
@@ -347,81 +203,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    // Redefinição de Senha com validação obrigatória da senha atual (impede Account Takeover não autenticado)
-    const recuperarSenha = async (
-        emailInput: string,
-        novaSenha: string,
-        senhaAtual?: string
-    ): Promise<{ success: boolean; message?: string }> => {
-        const emailLimpo = sanitizeInput(emailInput).toLowerCase();
-        const cred = credentials.find((c) => c.email.toLowerCase() === emailLimpo);
-
-        if (!cred) {
-            return { success: false, message: "Credenciais inválidas ou e-mail não localizado." };
-        }
-
-        // Exige validação da senha atual caso não seja um Administrador autenticado
-        const isAdminAutenticado = user && user.role === "ADMIN";
-        if (!isAdminAutenticado) {
-            if (!senhaAtual) {
-                return {
-                    success: false,
-                    message: "Por segurança, informe sua senha atual ou solicite o reset ao Administrador do sistema.",
-                };
-            }
-            const hashAtual = await hashPassword(senhaAtual);
-            if (hashAtual !== cred.passwordHash) {
-                return {
-                    success: false,
-                    message: "A senha atual informada está incorreta. Caso não se lembre, solicite a redefinição ao Administrador.",
-                };
-            }
-        }
-
-        if (novaSenha.length < 6) {
-            return { success: false, message: "A nova senha deve ter no mínimo 6 caracteres." };
-        }
-
-        const newHash = await hashPassword(novaSenha);
-        const updatedCreds = credentials.map((c) =>
-            c.email.toLowerCase() === emailLimpo ? { ...c, passwordHash: newHash } : c
-        );
-
-        setCredentials(updatedCreds);
-        localStorage.setItem("rb_auth_credentials", JSON.stringify(updatedCreds));
-
-        return { success: true, message: "Senha atualizada com sucesso! Você já pode acessar o sistema." };
-    };
-
-    // Alteração de Senha do usuário logado
+    // Alteração de Senha do próprio usuário autenticado
     const alterarSenha = async (
         senhaAtual: string,
         novaSenha: string
     ): Promise<{ success: boolean; message?: string }> => {
         if (!user) return { success: false, message: "Nenhum usuário conectado." };
 
-        const cred = credentials.find((c) => c.userId === user.id);
-        if (!cred) return { success: false, message: "Credenciais de acesso não encontradas." };
-
-        const hashAtual = await hashPassword(senhaAtual);
-        if (hashAtual !== cred.passwordHash) {
-            return { success: false, message: "A senha atual informada está incorreta." };
+        if (novaSenha.length < 6) {
+            return { success: false, message: "A nova senha deve conter no mínimo 6 caracteres." };
         }
+
+        try {
+            const verifyRes = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: user.email, senha: senhaAtual }),
+            });
+
+            if (!verifyRes.ok) {
+                return { success: false, message: "A senha atual informada está incorreta." };
+            }
+
+            await postSync("save_credential", "credential", {
+                userId: user.id,
+                email: user.email,
+                senha: novaSenha,
+            });
+
+            return { success: true, message: "Sua senha foi alterada com segurança!" };
+        } catch {
+            return { success: false, message: "Erro ao comunicar com o servidor para alterar a senha." };
+        }
+    };
+
+    // Recuperação / Troca com validação de senha atual
+    const recuperarSenha = async (
+        emailInput: string,
+        novaSenha: string,
+        senhaAtual?: string
+    ): Promise<{ success: boolean; message?: string }> => {
+        const emailLimpo = sanitizeInput(emailInput).toLowerCase();
 
         if (novaSenha.length < 6) {
             return { success: false, message: "A nova senha deve conter no mínimo 6 caracteres." };
         }
 
-        const novoHash = await hashPassword(novaSenha);
-        const updatedCreds = credentials.map((c) =>
-            c.userId === user.id ? { ...c, passwordHash: novoHash } : c
-        );
+        const isAdminAutenticado = user && user.role === "ADMIN";
+        if (!isAdminAutenticado) {
+            if (!senhaAtual) {
+                return {
+                    success: false,
+                    message: "Por segurança, informe sua senha atual ou solicite a redefinição ao Administrador do sistema.",
+                };
+            }
 
-        setCredentials(updatedCreds);
-        localStorage.setItem("rb_auth_credentials", JSON.stringify(updatedCreds));
-        postSync("save_credential", "credential", { userId: user.id, email: user.email, passwordHash: novoHash });
+            const verifyRes = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: emailLimpo, senha: senhaAtual }),
+            });
 
-        return { success: true, message: "Sua senha foi alterada com segurança!" };
+            if (!verifyRes.ok) {
+                return { success: false, message: "A senha atual informada está incorreta." };
+            }
+        }
+
+        const targetUser = usersList.find((u) => u.email.toLowerCase() === emailLimpo);
+        if (targetUser) {
+            await postSync("save_credential", "credential", {
+                userId: targetUser.id,
+                email: emailLimpo,
+                senha: novaSenha,
+            });
+        }
+
+        return { success: true, message: "Senha atualizada com sucesso! Você já pode acessar o sistema." };
     };
 
     // -------------------------------------------------------------
@@ -466,29 +323,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ultimoAcesso: undefined,
         };
 
-        const passHash = await hashPassword(dados.senha);
-        const novaCred: StoredCredential = {
+        const updatedUsers = [...usersList, novoUsuario];
+        setUsersList(updatedUsers);
+        localStorage.setItem("rb_auth_users", JSON.stringify(updatedUsers));
+
+        await postSync("save_user", "user", novoUsuario);
+        await postSync("save_credential", "credential", {
             userId: novoId,
             email: emailLimpo,
-            passwordHash: passHash,
-        };
-
-        const updatedUsers = [...usersList, novoUsuario];
-        const updatedCreds = [...credentials, novaCred];
-
-        setUsersList(updatedUsers);
-        setCredentials(updatedCreds);
-
-        localStorage.setItem("rb_auth_users", JSON.stringify(updatedUsers));
-        localStorage.setItem("rb_auth_credentials", JSON.stringify(updatedCreds));
-
-        postSync("save_user", "user", novoUsuario);
-        postSync("save_credential", "credential", novaCred);
+            senha: dados.senha,
+        });
 
         return { success: true };
     };
 
-    const atualizarUsuarioPorAdmin = (id: string, dados: Partial<User>) => {
+    const atualizarUsuarioPorAdmin = async (id: string, dados: Partial<User>) => {
         if (!user || user.role !== "ADMIN") return;
 
         let usuarioAtualizado: User | null = null;
@@ -503,32 +352,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("rb_auth_users", JSON.stringify(updated));
 
         if (usuarioAtualizado) {
-            postSync("save_user", "user", usuarioAtualizado);
+            await postSync("save_user", "user", usuarioAtualizado);
         }
 
-        if (dados.email) {
-            const emailLimpo = sanitizeInput(dados.email).toLowerCase();
-            const updatedCreds = credentials.map((c) => (c.userId === id ? { ...c, email: emailLimpo } : c));
-            setCredentials(updatedCreds);
-            localStorage.setItem("rb_auth_credentials", JSON.stringify(updatedCreds));
-            const credItem = updatedCreds.find((c) => c.userId === id);
-            if (credItem) {
-                postSync("save_credential", "credential", credItem);
-            }
-        }
-
-        // Se editou o usuário ativo no momento, atualiza também a sessão
-        if (user && user.id === id) {
-            const updatedCurrentUser = { ...user, ...dados };
-            setUser(updatedCurrentUser);
+        if (user && user.id === id && usuarioAtualizado) {
+            setUser(usuarioAtualizado);
             if (session) {
-                const sig = computeSessionSignature(
-                    updatedCurrentUser.id,
-                    updatedCurrentUser.email,
-                    updatedCurrentUser.role,
-                    String(session.expiresAt)
-                );
-                const updatedSession = { ...session, user: updatedCurrentUser, signature: sig };
+                const updatedSession = { ...session, user: usuarioAtualizado };
                 setSession(updatedSession);
                 localStorage.setItem("rb_auth_session", JSON.stringify(updatedSession));
             }
@@ -543,11 +373,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return { success: false, message: "Você não pode excluir a conta principal de administrador." };
         }
         const updated = usersList.filter((u) => u.id !== id);
-        const updatedCreds = credentials.filter((c) => c.userId !== id);
         setUsersList(updated);
-        setCredentials(updatedCreds);
         localStorage.setItem("rb_auth_users", JSON.stringify(updated));
-        localStorage.setItem("rb_auth_credentials", JSON.stringify(updatedCreds));
 
         postSync("delete_user", "user", undefined, id);
         return { success: true };
@@ -563,16 +390,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (novaSenha.length < 6) {
             return { success: false, message: "A nova senha deve ter no mínimo 6 caracteres." };
         }
-        const newHash = await hashPassword(novaSenha);
-        const updatedCreds = credentials.map((c) =>
-            c.userId === userId ? { ...c, passwordHash: newHash } : c
-        );
-        setCredentials(updatedCreds);
-        localStorage.setItem("rb_auth_credentials", JSON.stringify(updatedCreds));
 
-        const credItem = updatedCreds.find((c) => c.userId === userId);
-        if (credItem) {
-            postSync("save_credential", "credential", credItem);
+        const targetUser = usersList.find((u) => u.id === userId);
+        if (targetUser) {
+            await postSync("save_credential", "credential", {
+                userId,
+                email: targetUser.email,
+                senha: novaSenha,
+            });
         }
 
         return { success: true, message: "Senha redefinida com sucesso!" };

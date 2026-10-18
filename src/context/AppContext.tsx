@@ -14,6 +14,7 @@ import {
 import { initialModelosDocumentos } from "@/lib/initialData";
 import { getLocalISODate } from "@/lib/utils";
 import { idbGet, idbSet } from "@/lib/idbStorage";
+import { useAuth } from "@/context/AuthContext";
 
 function generateId(prefix: string): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -72,6 +73,7 @@ interface AppContextType {
   modelos: ModeloDocumento[];
   vendas: Venda[];
   documentosGerados: DocumentoGerado[];
+  recarregarDados?: () => Promise<void>;
 
   // Veículos
   addVeiculo: (veiculo: Omit<Veiculo, "id" | "createdAt" | "updatedAt" | "custoTotal">) => Veiculo;
@@ -230,6 +232,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
     }
   }, []);
+
+  const { isAuthenticated } = useAuth();
+
+  const carregarDadosDoServidor = async () => {
+    try {
+      const res = await fetch("/api/sync");
+      if (!res.ok) return;
+      const result = await res.json();
+      if (result?.connected && result?.data) {
+        const d = result.data;
+        if (d.veiculos) setVeiculos(d.veiculos);
+        if (d.clientes) setClientes(d.clientes);
+        if (d.modelos && d.modelos.length > 0) setModelos(d.modelos);
+        if (d.vendas) setVendas(d.vendas);
+        if (d.documentosGerados) setDocumentosGerados(d.documentosGerados);
+      }
+    } catch {
+      // Offline fallback
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      carregarDadosDoServidor();
+    }
+  }, [isAuthenticated]);
 
   // Persiste no localStorage de forma isolada e segura contra QuotaExceededError
   useEffect(() => {
@@ -686,6 +714,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         deleteModelo,
         salvarDocumentoGerado,
         deleteDocumentoGerado,
+        recarregarDados: carregarDadosDoServidor,
       }}
     >
       {children}

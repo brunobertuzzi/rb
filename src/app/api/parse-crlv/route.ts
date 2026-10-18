@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseCRLVFromPdfBuffer } from "@/lib/crlvParser";
+import { checkRateLimit, getClientIp } from "@/lib/serverAuth";
 
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req);
+    const rateCheck = checkRateLimit(`crlv:${ip}`, 20, 60);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { sucesso: false, erro: `Limite de requisições excedido. Aguarde ${rateCheck.remainingSeconds} segundos.` },
+        { status: 429 }
+      );
+    }
+
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 

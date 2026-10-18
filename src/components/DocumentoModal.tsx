@@ -3,12 +3,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import { Veiculo, Cliente, ModeloDocumento } from "@/types";
-import { formatCurrency, formatUsage, formatDate, valorPorExtenso, renderDocumentoFormatadoHtml, compartilharOuBaixarPdfDocumento } from "@/lib/utils";
+import { formatCurrency, formatUsage, formatDate, valorPorExtenso, renderDocumentoFormatadoHtml, compartilharOuBaixarPdfDocumento, imprimirDocumento } from "@/lib/utils";
 import {
     X,
     FileText,
     Printer,
-    Download,
     Check,
     Sparkles,
     Edit3,
@@ -309,7 +308,7 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
 
     if (!isOpen) return null;
 
-    // Imprimir diretamente em folha A4 com tipografia legal
+    // Imprimir diretamente em folha A4 com tipografia legal (compatível com celulares e desktop)
     const handleImprimir = () => {
         if (camposPendentesCliente.length > 0) {
             const lista = camposPendentesCliente.map((p) => p.label).join(", ");
@@ -319,74 +318,14 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
             return;
         }
 
-        const janelaImpressao = window.open("", "_blank");
-        if (!janelaImpressao) {
-            alert("O bloqueador de pop-ups impediu a abertura da janela de impressão. Por favor, permita pop-ups para este site e tente novamente.");
-            return;
-        }
-
         salvarHistorico();
-
-        janelaImpressao.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Procuração — RB Agronegócios</title>
-          <style>
-            @page {
-              size: A4;
-              margin: 15mm 15mm 15mm 15mm;
-            }
-            body {
-              font-family: 'Times New Roman', Times, serif;
-              font-size: 11pt;
-              line-height: 1.45;
-              color: #000;
-              margin: 0;
-              padding: 0;
-            }
-          </style>
-        </head>
-        <body>
-          <div>${renderDocumentoFormatadoHtml(conteudoEditavel)}</div>
-        </body>
-      </html>
-    `);
-
-        janelaImpressao.document.close();
-        janelaImpressao.focus();
-        setTimeout(() => {
-            janelaImpressao.print();
-            janelaImpressao.close();
-        }, 400);
-    };
-
-    // Baixar arquivo compatível com Word (.doc)
-    const handleBaixarWord = () => {
-        if (camposPendentesCliente.length > 0) {
-            const lista = camposPendentesCliente.map((p) => p.label).join(", ");
-            alert(
-                `Download Bloqueado: Não é permitido baixar o documento enquanto houver dados cadastrais pendentes (${lista}).\n\nPor favor, complete as informações clicando no botão "Completar Cadastro Rápido".`
-            );
-            return;
-        }
-
-        salvarHistorico();
-        const html = `
-      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-      <head><meta charset='utf-8'><title>Procuração</title></head>
-      <body style="font-family: 'Times New Roman', serif; font-size: 11pt; line-height: 1.45;">
-        <div>${renderDocumentoFormatadoHtml(conteudoEditavel)}</div>
-      </body>
-      </html>
-    `;
-        const blob = new Blob(["\ufeff", html], { type: "application/msword" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `procuracao-${Date.now()}.doc`;
-        a.click();
-        URL.revokeObjectURL(url);
+        const nomeOutorgante = cliente?.nome ? cliente.nome.trim().split(/\s+/)[0] : "";
+        const nomeOutorgado = clienteOutorgado?.nome ? clienteOutorgado.nome.trim().split(/\s+/)[0] : "";
+        const tituloDoc =
+            nomeOutorgante && nomeOutorgado
+                ? `PROCURACAO_${nomeOutorgante}_${nomeOutorgado}`
+                : modelo?.titulo || "PROCURACAO";
+        imprimirDocumento(conteudoEditavel, tituloDoc);
     };
 
     const handleEncaminharPdf = async () => {
@@ -611,27 +550,13 @@ export function DocumentoModal({ veiculoInicial, modeloInicialId, onEditarModelo
                             <div className="flex items-start sm:items-center gap-2 w-full bg-amber-500/10 border border-amber-300/70 p-2 sm:p-0 sm:bg-transparent sm:border-0 rounded-xl">
                                 <Lock className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5 sm:mt-0" />
                                 <span className="text-amber-900 font-medium text-[11px] sm:text-xs break-words leading-tight flex-1">
-                                    Emissão bloqueada: Complete os {camposPendentesCliente.length} dados pendentes no banner acima para liberar a impressão e o download.
+                                    Emissão bloqueada: Complete os {camposPendentesCliente.length} dados pendentes no banner acima para liberar a impressão e o envio do PDF.
                                 </span>
                             </div>
                         )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto justify-end shrink-0">
-                        <button
-                            type="button"
-                            onClick={handleBaixarWord}
-                            disabled={camposPendentesCliente.length > 0}
-                            title={camposPendentesCliente.length > 0 ? "Preencha todos os dados pendentes para liberar o download" : "Baixar Word (.doc)"}
-                            className={`w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl transition-all ${camposPendentesCliente.length > 0
-                                    ? "bg-zinc-100 text-zinc-400 border border-zinc-200/80 cursor-not-allowed opacity-60 shadow-none"
-                                    : "bg-white text-zinc-700 hover:text-zinc-900 hover:bg-zinc-50 border border-black/[0.08] active:scale-95 shadow-2xs cursor-pointer"
-                                }`}
-                        >
-                            <Download className={`w-3.5 h-3.5 ${camposPendentesCliente.length > 0 ? "text-zinc-400" : "text-blue-600"}`} />
-                            <span>Baixar Word (.doc)</span>
-                        </button>
-
                         <button
                             type="button"
                             onClick={handleImprimir}

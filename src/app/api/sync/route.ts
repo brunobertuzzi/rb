@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hashPasswordServer } from "@/lib/serverAuth";
 
 export async function GET() {
   if (!process.env.DATABASE_URL) {
@@ -104,14 +105,6 @@ export async function GET() {
       criadoEm: u.criadoEm.toISOString(),
     }));
 
-    const credentials = usersRaw
-      .filter((u) => u.credential)
-      .map((u) => ({
-        userId: u.id,
-        email: u.email,
-        passwordHash: u.credential!.passwordHash,
-      }));
-
     return NextResponse.json({
       connected: true,
       data: {
@@ -121,7 +114,6 @@ export async function GET() {
         vendas,
         documentosGerados,
         users,
-        credentials,
       },
     });
   } catch (error: unknown) {
@@ -146,6 +138,27 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { action, data, id, parentId } = body;
+
+    const userRole = req.headers.get("x-user-role");
+
+    // Ações de gestão de usuários e migração restritas estritamente para perfil ADMIN
+    const adminOnlyActions = ["save_user", "delete_user", "save_credential", "seed_migration"];
+    if (adminOnlyActions.includes(action)) {
+      if (action === "seed_migration") {
+        const totalUsers = await prisma.user.count();
+        if (totalUsers > 0 && userRole !== "ADMIN") {
+          return NextResponse.json(
+            { success: false, message: "Acesso negado: apenas Administradores podem executar a migração." },
+            { status: 403 }
+          );
+        }
+      } else if (userRole !== "ADMIN") {
+        return NextResponse.json(
+          { success: false, message: "Acesso negado: apenas Administradores podem gerenciar usuários e credenciais." },
+          { status: 403 }
+        );
+      }
+    }
 
     if (action === "seed_migration") {
       // Migração inicial em lote do localStorage para o PostgreSQL
@@ -768,11 +781,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "save_credential") {
-      const { userId, email, passwordHash } = data;
+      const { userId, email, passwordHash, senha } = data;
+      const finalHash = senha ? await hashPasswordServer(senha) : passwordHash;
       await prisma.credential.upsert({
         where: { userId },
-        update: { email, passwordHash },
-        create: { userId, email, passwordHash },
+        update: { email, passwordHash: finalHash },
+        create: { userId, email, passwordHash: finalHash },
       });
       return NextResponse.json({ success: true });
     }

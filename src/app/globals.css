@@ -76,3 +76,54 @@ button, a {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.3);
 }
+
+/* Suporte a Impressão Direta e Mobile (iOS / Android / Desktop) */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 15mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: auto !important;
+    display: block !important;
+  }
+
+  /* Oculta toda a aplicação normal (telas, modais, headers, navs) */
+  body > *:not(#rb-print-area) {
+    display: none !important;
+  }
+
+  /* Exibe o documento a ser impresso com tipografia jurídica */
+  #rb-print-area {
+    display: block !important;
+    position: static !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Times New Roman', Times, Georgia, serif !important;
+    font-size: 11pt !important;
+    line-height: 1.45 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #rb-print-area div {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+
+@media screen {
+  #rb-print-area {
+    display: none !important;
+  }
+}

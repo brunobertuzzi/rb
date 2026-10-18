@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit, getClientIp } from "@/lib/serverAuth";
 
 const FIPE_BASE_URL = "https://fipe.parallelum.com.br/api/v2";
 
@@ -177,6 +178,15 @@ function findBestYear(
 
 export async function GET(req: NextRequest) {
   try {
+    const ip = getClientIp(req);
+    const rateCheck = checkRateLimit(`fipe:${ip}`, 60, 60);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { sucesso: false, erro: `Muitas consultas à FIPE em sequência. Aguarde ${rateCheck.remainingSeconds} segundos.` },
+        { status: 429 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const action = searchParams.get("action") || "brands";
     const type = searchParams.get("type") || "cars"; // cars | trucks | motorcycles

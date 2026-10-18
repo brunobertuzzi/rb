@@ -432,4 +432,40 @@ export async function compartilharOuBaixarPdfDocumento(texto: string, titulo = "
   URL.revokeObjectURL(url);
 }
 
+// Impressão direta otimizada para dispositivos móveis (iOS Safari, Android Chrome, PWAs) e Desktop
+export function imprimirDocumento(texto: string, titulo = "Procuracao"): void {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+
+  try {
+    let printContainer = document.getElementById("rb-print-area");
+    if (!printContainer) {
+      printContainer = document.createElement("div");
+      printContainer.id = "rb-print-area";
+      document.body.appendChild(printContainer);
+    }
+
+    printContainer.innerHTML = renderDocumentoFormatadoHtml(texto);
+
+    const tituloAnterior = document.title;
+    if (titulo) {
+      document.title = `${titulo} — RB Agronegócios`;
+    }
+
+    const restaurarTitulo = () => {
+      document.title = tituloAnterior;
+      window.removeEventListener("afterprint", restaurarTitulo);
+    };
+    window.addEventListener("afterprint", restaurarTitulo);
+
+    if (typeof window.print === "function") {
+      window.print();
+    } else {
+      compartilharOuBaixarPdfDocumento(texto, titulo);
+    }
+  } catch (err) {
+    console.error("Erro ao imprimir documento, usando fallback PDF:", err);
+    compartilharOuBaixarPdfDocumento(texto, titulo);
+  }
+}
+
 

@@ -3,7 +3,7 @@
 import React from "react";
 import { useApp } from "@/context/AppContext";
 import { ModeloDocumento, DocumentoGerado } from "@/types";
-import { formatDate, renderDocumentoFormatadoHtml, compartilharOuBaixarPdfDocumento } from "@/lib/utils";
+import { formatDate, renderDocumentoFormatadoHtml, compartilharOuBaixarPdfDocumento, imprimirDocumento } from "@/lib/utils";
 import {
     FileText,
     Plus,
@@ -30,46 +30,7 @@ export function DocumentosView({
     const { modelos, documentosGerados, deleteModelo, deleteDocumentoGerado } = useApp();
 
     const imprimirDocHistorico = (doc: DocumentoGerado) => {
-        const janelaImpressao = window.open("", "_blank");
-        if (!janelaImpressao) {
-            alert("O bloqueador de pop-ups impediu a abertura da janela de impressão. Por favor, permita pop-ups para este site e tente novamente.");
-            return;
-        }
-
-        const tituloSeguro = (doc.titulo || "Documento")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;");
-
-        janelaImpressao.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${tituloSeguro} — RB Agronegócios</title>
-          <style>
-            @page { size: A4; margin: 15mm 15mm 15mm 15mm; }
-            body {
-              font-family: 'Times New Roman', Times, serif;
-              font-size: 11pt;
-              line-height: 1.45;
-              color: #000;
-              margin: 0;
-              padding: 0;
-            }
-          </style>
-        </head>
-        <body>
-          <div>${renderDocumentoFormatadoHtml(doc.conteudoFinal)}</div>
-        </body>
-      </html>
-    `);
-        janelaImpressao.document.close();
-        janelaImpressao.focus();
-        setTimeout(() => {
-            janelaImpressao.print();
-            janelaImpressao.close();
-        }, 400);
+        imprimirDocumento(doc.conteudoFinal, doc.titulo || "Documento");
     };
 
     return (
